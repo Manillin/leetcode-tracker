@@ -28,8 +28,6 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
     const updateUserStreak = async (completedDate: string) => {
         if (!user) return
 
-        console.log('🔥 updateUserStreak chiamata per data:', completedDate)
-
         try {
             // Ottieni il profilo attuale
             const { data: profile, error: profileError } = await supabase
@@ -43,12 +41,6 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                 return
             }
 
-            console.log('🔥 Profilo attuale:', {
-                hasProfile: !!profile,
-                currentStreak: profile?.streak_count,
-                lastDate: profile?.last_completed_date
-            })
-
             // Calcola la nuova streak
             let newStreak = 1
             const completedDateObj = new Date(completedDate)
@@ -58,20 +50,12 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                 const diffTime = completedDateObj.getTime() - lastDateObj.getTime()
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-                console.log('🔥 Calcolo streak:', {
-                    lastDate: profile.last_completed_date,
-                    newDate: completedDate,
-                    diffDays
-                })
-
                 // Se è lo stesso giorno o il giorno successivo, incrementa la streak
                 if (diffDays <= 1 && diffDays >= 0) {
                     newStreak = (profile.streak_count || 0) + 1
                 }
                 // Altrimenti inizia una nuova streak
             }
-
-            console.log('🔥 Nuova streak calcolata:', newStreak)
 
             // Aggiorna il profilo usando il contesto (aggiorna sia DB che contesto)
             const { error: updateError } = await updateProfile({
@@ -81,8 +65,6 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
 
             if (updateError) {
                 console.error('Errore nell\'aggiornamento della streak:', updateError)
-            } else {
-                console.log('✅ Streak aggiornata nel contesto:', newStreak)
             }
         } catch (error) {
             console.error('Errore nel calcolo della streak:', error)

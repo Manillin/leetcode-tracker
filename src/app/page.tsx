@@ -6,8 +6,6 @@ import AuthTest from '@/components/AuthTest'
 export default function Home() {
   const { user, loading } = useAuth()
 
-  console.log('Debug Home page:', { user: !!user, loading })
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

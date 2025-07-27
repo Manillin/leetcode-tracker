@@ -30,24 +30,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [loading, setLoading] = useState(true)
 
-    console.log('🔧 AuthProvider render - loading:', loading, 'user:', !!user)
-
     let supabase
     try {
         supabase = createSupabaseClient()
-        console.log('✅ AuthProvider - Supabase client created successfully')
     } catch (error) {
-        console.error('❌ AuthProvider - Error creating Supabase client:', error)
+        console.error('Errore nella creazione del client Supabase:', error)
         setLoading(false)
         throw error
     }
 
     // Carica il profilo utente (memoizzata)
     const loadProfile = useCallback(async (userId: string) => {
-        console.log('🔧 loadProfile called for userId:', userId)
         try {
-            console.log('🔧 loadProfile - making Supabase query...')
-
             // Timeout di 5 secondi per evitare blocchi infiniti  
             const queryPromise = supabase
                 .from('profiles')
@@ -62,19 +56,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const result = await Promise.race([queryPromise, timeoutPromise])
             const { data, error } = result
 
-            console.log('🔧 loadProfile - query completed. error:', !!error, 'data:', !!data)
-
             if (error && error.code !== 'PGRST116') {
-                console.error('❌ loadProfile error:', error)
+                console.error('Errore nel caricamento del profilo:', error)
                 // Continua comunque invece di bloccarsi
                 setProfile(null)
                 return
             }
 
-            console.log('✅ loadProfile success:', !!data)
             setProfile(data || null)
         } catch (error) {
-            console.error('❌ loadProfile catch error:', error)
+            console.error('Errore nel caricamento del profilo:', error)
             // Imposta profilo a null invece di bloccarsi
             setProfile(null)
         }
@@ -82,31 +73,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Inizializzazione e gestione dello stato auth
     useEffect(() => {
-        console.log('🔧 AuthProvider useEffect - initializing auth...')
-
         // Ottieni la sessione iniziale
         const getInitialSession = async () => {
-            console.log('🔧 getInitialSession called')
             try {
                 const { data: { session }, error } = await supabase.auth.getSession()
-                console.log('✅ getSession result:', { hasSession: !!session, error: !!error })
 
                 if (error) {
-                    console.error('❌ getSession error:', error)
+                    console.error('Errore nel recupero della sessione:', error)
                 }
 
                 setSession(session)
                 setUser(session?.user ?? null)
 
                 if (session?.user) {
-                    console.log('🔧 Loading profile for user:', session.user.id)
                     await loadProfile(session.user.id)
                 }
 
-                console.log('✅ Setting loading to false')
                 setLoading(false)
             } catch (error) {
-                console.error('❌ getInitialSession catch error:', error)
+                console.error('Errore nell\'inizializzazione della sessione:', error)
                 setLoading(false)
             }
         }
@@ -114,10 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getInitialSession()
 
         // Ascolta i cambiamenti di auth
-        console.log('🔧 Setting up auth state change listener')
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
-                console.log('🔧 Auth state change:', event, 'hasSession:', !!session)
                 setSession(session)
                 setUser(session?.user ?? null)
 
@@ -132,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
 
         return () => {
-            console.log('🔧 Cleaning up auth subscription')
             subscription.unsubscribe()
         }
     }, [supabase.auth, loadProfile])
