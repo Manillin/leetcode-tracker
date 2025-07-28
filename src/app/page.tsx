@@ -20,7 +20,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-          🚀 LeetCode Tracker
+          LeetCode Tracker
         </h1>
         <p className="text-center text-gray-600 mb-8">
           Traccia i tuoi progressi e mantieni la motivazione!
@@ -28,7 +28,7 @@ export default function Home() {
 
         {user && (
           <div className="text-center mb-4">
-            <p className="text-green-600 font-medium">✅ Utente autenticato: {user.email}</p>
+            <p className="text-green-600 font-medium">Utente autenticato: {user.email}</p>
             <a href="/profile" className="text-blue-600 hover:underline">
               Vai al Profilo →
             </a>

@@ -309,10 +309,10 @@ function ProfilePage() {
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        👋 Ciao, {profile?.name || user.email}!
+                        Ciao, {profile?.name || user.email}!
                     </h1>
                     <p className="text-gray-600">
-                        Ecco il tuo progresso su LeetCode
+                        Ecco il tuo progresso su LeetCode - FANNE ALTRI WAGLIUUUU
                     </p>
                 </div>
 
