@@ -102,8 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
             const errorTime = performance.now()
             console.log('⏰ Profile timeout after', (errorTime - startTime).toFixed(2), 'ms - app continues working')
-            // Non è un errore fatale - l'app continua a funzionare
-            setProfile(null)
+
+            // IMPORTANTE: Non azzerare il profilo se ne abbiamo già uno
+            // Questo evita che i refresh token di Supabase cancellino i dati
+            if (!profile) {
+                console.log('📝 First profile load failed - setting null')
+                setProfile(null)
+            } else {
+                console.log('🛡️ Profile timeout but keeping existing profile data')
+            }
         }
     }, [supabase])
 
