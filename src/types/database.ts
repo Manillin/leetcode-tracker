@@ -1,3 +1,49 @@
+// Costanti per categorie e tag
+export const PRIMARY_CATEGORIES = [
+  'Array & Hashing',
+  'Two Pointers',
+  'Sliding Window',
+  'Stack',
+  'Binary Search',
+  'Linked Lists',
+  'Trees',
+  'Tries',
+  'Heap / Priority Queue',
+  'Backtracking',
+  'Graphs',
+  'Advanced Graphs',
+  'Dynamic Programming',
+  'Greedy',
+  'Intervals',
+  'Math & Geometry',
+  'Bit Manipulation'
+] as const
+
+export const ADDITIONAL_TAGS = [
+  'Recursion',
+  'DFS',
+  'BFS',
+  'Memoization',
+  'Binary Tree',
+  'Binary Search Tree',
+  'Sorting',
+  'String Manipulation',
+  'Matrix',
+  'Hash Map',
+  'Queue',
+  'Deque',
+  'Union Find',
+  'Divide & Conquer',
+  'Prefix Sum',
+  'Monotonic Stack',
+  'Trie',
+  'Segment Tree',
+  'Fenwick Tree'
+] as const
+
+export type PrimaryCategory = typeof PRIMARY_CATEGORIES[number]
+export type AdditionalTag = typeof ADDITIONAL_TAGS[number]
+
 export interface Database {
   public: {
     Tables: {
@@ -60,6 +106,8 @@ export interface Database {
           problem_id: number
           notes: string | null
           date_completed: string
+          primary_category: string
+          additional_tags: string[] | null
         }
         Insert: {
           id?: number
@@ -67,6 +115,8 @@ export interface Database {
           problem_id: number
           notes?: string | null
           date_completed: string
+          primary_category: string
+          additional_tags?: string[] | null
         }
         Update: {
           id?: number
@@ -74,6 +124,8 @@ export interface Database {
           problem_id?: number
           notes?: string | null
           date_completed?: string
+          primary_category?: string
+          additional_tags?: string[] | null
         }
       }
     }

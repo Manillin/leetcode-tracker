@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('🛡️ Profile timeout but keeping existing profile data')
             }
         }
-    }, [supabase])
+    }, [supabase, profile])
 
     // Inizializzazione auth ottimizzata (con loading intelligente)
     useEffect(() => {

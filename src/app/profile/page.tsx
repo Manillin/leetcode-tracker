@@ -8,6 +8,7 @@ import ExerciseTable from '@/components/profile/ExerciseTable'
 import AddExerciseModal from '@/components/profile/AddExerciseModal'
 import EditExerciseModal from '@/components/profile/EditExerciseModal'
 import DeleteConfirmModal from '@/components/profile/DeleteConfirmModal'
+import ExerciseDetailModal from '@/components/profile/ExerciseDetailModal'
 
 interface ExerciseWithProblem {
     id: number
@@ -15,6 +16,8 @@ interface ExerciseWithProblem {
     problem_id: number
     notes: string | null
     date_completed: string
+    primary_category: string
+    additional_tags: string[] | null
     leetcode_number: number
     title: string
     link: string
@@ -29,6 +32,7 @@ function ProfilePage() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [showDetailModal, setShowDetailModal] = useState(false)
     const [selectedExercise, setSelectedExercise] = useState<ExerciseWithProblem | null>(null)
 
     // Memoizza il client Supabase
@@ -81,7 +85,7 @@ function ProfilePage() {
             const query1Start = performance.now()
             const { data: exerciseData, error: exerciseError } = await supabase
                 .from('solved_exercises')
-                .select('id, user_id, problem_id, notes, date_completed')
+                .select('id, user_id, problem_id, notes, date_completed, primary_category, additional_tags')
                 .eq('user_id', user.id)
                 .order('date_completed', { ascending: false })
                 .range(from, to)
@@ -192,7 +196,7 @@ function ProfilePage() {
                 // Prima query: esercizi (più probabile che funzioni)
                 const { data: exerciseData, error: exerciseError } = await supabase
                     .from('solved_exercises')
-                    .select('id, user_id, problem_id, notes, date_completed')
+                    .select('id, user_id, problem_id, notes, date_completed, primary_category, additional_tags')
                     .eq('user_id', user.id)
                     .order('date_completed', { ascending: false })
                     .range(from, to)
@@ -279,6 +283,12 @@ function ProfilePage() {
         setShowDeleteModal(true)
     }
 
+    // Gestione visualizzazione dettagli esercizio
+    const handleViewExercise = (exercise: ExerciseWithProblem) => {
+        setSelectedExercise(exercise)
+        setShowDetailModal(true)
+    }
+
     // Callback per refresh dopo operazioni CRUD
     const handleOperationComplete = () => {
         // Ricarica sia gli esercizi che il conteggio
@@ -345,6 +355,7 @@ function ProfilePage() {
                         currentPage={currentPage}
                         totalPages={totalPages}
                         onPageChange={setCurrentPage}
+                        onView={handleViewExercise}
                         onEdit={handleEditExercise}
                         onDelete={handleDeleteExercise}
                     />
@@ -368,6 +379,13 @@ function ProfilePage() {
                     isOpen={showDeleteModal}
                     exercise={selectedExercise}
                     onClose={() => setShowDeleteModal(false)}
+                    onSuccess={handleOperationComplete}
+                />
+
+                <ExerciseDetailModal
+                    isOpen={showDetailModal}
+                    exercise={selectedExercise}
+                    onClose={() => setShowDetailModal(false)}
                     onSuccess={handleOperationComplete}
                 />
             </div>

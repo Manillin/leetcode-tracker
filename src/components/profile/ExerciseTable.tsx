@@ -4,6 +4,8 @@ interface ExerciseWithProblem {
     problem_id: number
     notes: string | null
     date_completed: string
+    primary_category: string
+    additional_tags: string[] | null
     leetcode_number: number
     title: string
     link: string
@@ -15,6 +17,7 @@ interface ExerciseTableProps {
     currentPage: number
     totalPages: number
     onPageChange: (page: number) => void
+    onView: (exercise: ExerciseWithProblem) => void
     onEdit: (exercise: ExerciseWithProblem) => void
     onDelete: (exercise: ExerciseWithProblem) => void
 }
@@ -25,6 +28,7 @@ export default function ExerciseTable({
     currentPage,
     totalPages,
     onPageChange,
+    onView,
     onEdit,
     onDelete,
 }: ExerciseTableProps) {
@@ -79,10 +83,10 @@ export default function ExerciseTable({
                                 Titolo
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Data Completamento
+                                Categoria
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Note
+                                Data Completamento
                             </th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Azioni
@@ -94,7 +98,7 @@ export default function ExerciseTable({
                             <tr key={exercise.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                        <span className="text-sm font-medium text-gray-900">
+                                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             {exercise.leetcode_number}
                                         </span>
                                     </div>
@@ -111,18 +115,45 @@ export default function ExerciseTable({
                                         </a>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {formatDate(exercise.date_completed)}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-sm text-gray-900 max-w-xs truncate">
-                                        {exercise.notes || (
-                                            <span className="text-gray-400 italic">Nessuna nota</span>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex flex-col space-y-1">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            {exercise.primary_category}
+                                        </span>
+                                        {exercise.additional_tags && exercise.additional_tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {exercise.additional_tags.slice(0, 2).map(tag => (
+                                                    <span
+                                                        key={tag}
+                                                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                                                    >
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                                {exercise.additional_tags.length > 2 && (
+                                                    <span className="text-xs text-gray-500">
+                                                        +{exercise.additional_tags.length - 2} altri
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {formatDate(exercise.date_completed)}
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end space-x-2">
+                                        <button
+                                            onClick={() => onView(exercise)}
+                                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                                            title="Visualizza dettagli"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </button>
                                         <button
                                             onClick={() => onEdit(exercise)}
                                             className="text-indigo-600 hover:text-indigo-900 p-1 hover:bg-indigo-50 rounded"
