@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LeetCode Tracker
+
+A modern web application for tracking LeetCode problem-solving progress and maintaining daily coding streaks.
+
+## Overview
+
+LeetCode Tracker is a full-stack application built with Next.js and Supabase that allows users to log their solved LeetCode problems, track consecutive coding days, and monitor their progress over time. The application features user authentication, streak management, and exercise tracking.
+
+## Features
+
+- **User Authentication**: Secure registration and login system with Supabase Auth
+- **Exercise Tracking**: Log solved LeetCode problems with notes and completion dates
+- **Streak System**: Track consecutive days of coding activity
+- **Progress Analytics**: View statistics and progress over time
+
+
+## Tech Stack
+
+### Frontend
+- **Next.js 14.2.30** - React framework with App Router
+- **TypeScript** - Type-safe JavaScript
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Hooks** - State management and lifecycle methods
+
+### Backend
+- **Supabase** - PostgreSQL database with real-time capabilities
+- **Supabase Auth** - Authentication and user management
+- **Row Level Security (RLS)** - Database-level security policies
+
+### Deployment
+- **Vercel** - Frontend hosting and deployment
+- **Supabase Cloud** - Database and backend services
+
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/leetcode-tracker.git
+cd leetcode-tracker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-## Learn More
+4. Set up Supabase database
 
-To learn more about Next.js, take a look at the following resources:
+5. Start the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Usage
 
-## Deploy on Vercel
+### User Registration
+1. Navigate to the application
+2. Create an account with email and password
+3. Complete profile setup
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Adding Exercises
+1. Click "Add Exercise" button
+2. Fill in LeetCode problem details:
+   - Problem number
+   - Title
+   - Link
+   - Completion date
+   - Optional notes
+3. Submit to update your progress and streak
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Tracking Progress
+- View total exercises solved
+- Monitor current streak count
+- Browse exercise history with pagination
+- Edit or delete existing entries
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── layout.tsx         # Root layout component
+│   ├── page.tsx           # Home page
+│   └── profile/           # Profile dashboard
+├── components/            # React components
+│   └── profile/          # Profile-specific components
+├── contexts/             # React contexts
+│   └── AuthContext.tsx   # Authentication state management
+├── lib/                  # Utility libraries
+│   └── supabase/         # Supabase client configuration
+└── types/                # TypeScript type definitions
+```
+
+## API Reference
+
+The application uses Supabase's auto-generated API for database operations:
+
+- **Authentication**: Supabase Auth API
+- **Database**: Supabase PostgREST API
+- **Real-time**: Supabase Realtime subscriptions
+
+
+## Known Issues
+
+- Query performance may vary based on geographic location relative to Supabase servers
+- Initial load times may be slower on cold starts
