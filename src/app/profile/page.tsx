@@ -151,119 +151,116 @@ function ProfilePage() {
         }
     }, [user?.id, supabase, ITEMS_PER_PAGE])
 
-    // Funzioni di caricamento stabili (evitano re-render)
-    const stableLoadTotalCount = useCallback(() => {
+    // STRATEGIA NON-BLOCCANTE: Query multiple parallele + fallback intelligente
+    const loadDataNonBlocking = useCallback(() => {
         if (!user?.id) return
 
-        const countStart = performance.now()
-        console.log('📊 Loading count for user:', user.id)
+        console.log('🚀 Starting NON-BLOCKING data load strategy for user:', user.id)
 
-        supabase
-            .from('solved_exercises')
-            .select('*', { count: 'estimated', head: true })
-            .eq('user_id', user.id)
-            .then(({ count, error }) => {
-                const countEnd = performance.now()
-                if (error) {
-                    console.error('❌ Count error:', error.message)
-                    return
-                }
-                setTotalCount(count || 0)
-                console.log('✅ Count loaded in', (countEnd - countStart).toFixed(2), 'ms:', count)
-            })
-            .catch((error) => {
-                console.log('⏰ Count timeout - continuing without count')
-            })
-    }, [user?.id, supabase])
-
-    const stableLoadExercises = useCallback((page: number) => {
-        if (!user?.id) return
-
-        const exerciseStart = performance.now()
-        console.log('📚 Loading exercises page:', page, 'for user:', user.id)
-
+        // Set loading immediatamente per show spinner
         setLoading(true)
 
-        const from = (page - 1) * ITEMS_PER_PAGE
-        const to = from + ITEMS_PER_PAGE - 1
+        // Strategia multi-query parallela
+        const loadCount = async () => {
+            try {
+                console.log('📊 Count query START')
+                const { count, error } = await supabase
+                    .from('solved_exercises')
+                    .select('*', { count: 'estimated', head: true })
+                    .eq('user_id', user.id)
 
-        // Query sequenziali con timeout più corti
-        supabase
-            .from('solved_exercises')
-            .select('id, user_id, problem_id, notes, date_completed')
-            .eq('user_id', user.id)
-            .order('date_completed', { ascending: false })
-            .range(from, to)
-            .then(({ data: exerciseData, error: exerciseError }) => {
+                if (!error) {
+                    setTotalCount(count || 0)
+                    console.log('✅ Count loaded:', count)
+                } else {
+                    console.log('⚠️ Count query failed, setting 0')
+                    setTotalCount(0)
+                }
+            } catch (error) {
+                console.log('⚠️ Count error, setting 0')
+                setTotalCount(0)
+            }
+        }
+
+        const loadExercises = async () => {
+            try {
+                const from = (currentPage - 1) * ITEMS_PER_PAGE
+                const to = from + ITEMS_PER_PAGE - 1
+
+                console.log('📚 Exercises query START')
+
+                // Prima query: esercizi (più probabile che funzioni)
+                const { data: exerciseData, error: exerciseError } = await supabase
+                    .from('solved_exercises')
+                    .select('id, user_id, problem_id, notes, date_completed')
+                    .eq('user_id', user.id)
+                    .order('date_completed', { ascending: false })
+                    .range(from, to)
+
                 if (exerciseError) {
-                    console.error('❌ Exercises error:', exerciseError.message)
-                    setLoading(false)
-                    return
+                    throw new Error('Exercise query failed: ' + exerciseError.message)
                 }
 
                 if (!exerciseData || exerciseData.length === 0) {
                     setExercises([])
-                    setLoading(false)
-                    const totalTime = performance.now() - exerciseStart
-                    console.log('✅ No exercises - total time:', totalTime.toFixed(2), 'ms')
+                    console.log('✅ No exercises found')
                     return
                 }
 
-                // Carica dettagli problemi
+                console.log('✅ Exercises loaded, loading problems...')
+
+                // Seconda query: problemi (in parallelo, non-bloccante)
                 const problemIds = Array.from(new Set(exerciseData.map(ex => ex.problem_id)))
 
-                return supabase
+                const { data: problemData, error: problemError } = await supabase
                     .from('problems')
                     .select('id, leetcode_number, title, link')
                     .in('id', problemIds)
-                    .then(({ data: problemData, error: problemError }) => {
-                        if (problemError) {
-                            console.error('❌ Problems error:', problemError.message)
-                            setLoading(false)
-                            return
-                        }
 
-                        const problemMap = new Map(
-                            problemData?.map(problem => [problem.id, problem]) || []
-                        )
+                // Anche se problemi falliscono, mostriamo gli esercizi
+                const problemMap = new Map(
+                    problemData?.map(problem => [problem.id, problem]) || []
+                )
 
-                        const transformedData: ExerciseWithProblem[] = exerciseData.map(exercise => {
-                            const problem = problemMap.get(exercise.problem_id)
-                            return {
-                                ...exercise,
-                                leetcode_number: problem?.leetcode_number || 0,
-                                title: problem?.title || 'N/A',
-                                link: problem?.link || '#',
-                            }
-                        })
+                const transformedData: ExerciseWithProblem[] = exerciseData.map(exercise => {
+                    const problem = problemMap.get(exercise.problem_id)
+                    return {
+                        ...exercise,
+                        leetcode_number: problem?.leetcode_number || 0,
+                        title: problem?.title || `Problem ${exercise.problem_id}`,
+                        link: problem?.link || '#',
+                    }
+                })
 
-                        setExercises(transformedData)
-                        const totalTime = performance.now() - exerciseStart
-                        console.log('✅ Exercises loaded - total time:', totalTime.toFixed(2), 'ms - count:', transformedData.length)
-                        setLoading(false)
-                    })
-            })
-            .catch((error) => {
-                console.log('⏰ Exercises timeout - continuing without exercises')
+                setExercises(transformedData)
+                console.log('✅ Complete exercises with problems loaded:', transformedData.length)
+
+            } catch (error) {
+                console.log('⚠️ Exercise loading failed, showing empty state')
+                setExercises([])
+            }
+        }
+
+        // Esegui tutto in parallelo, NON sequenziale
+        Promise.allSettled([loadCount(), loadExercises()])
+            .then(() => {
+                console.log('🎯 All data loading completed (success or failure)')
                 setLoading(false)
             })
-    }, [user?.id, supabase, ITEMS_PER_PAGE])
+            .catch(() => {
+                console.log('🎯 Data loading finished with errors')
+                setLoading(false)
+            })
 
-    // Carica conteggio una sola volta quando user cambia
+    }, [user?.id, supabase, currentPage, ITEMS_PER_PAGE])
+
+    // Carica TUTTI i dati quando user cambia o pagina cambia
     useEffect(() => {
         if (user?.id) {
-            console.log('🎯 User authenticated, loading count')
-            stableLoadTotalCount()
+            console.log('🎯 User/Page changed, loading all data non-blocking')
+            loadDataNonBlocking()
         }
-    }, [user?.id, stableLoadTotalCount])
-
-    // Carica esercizi quando cambia pagina o user
-    useEffect(() => {
-        if (user?.id) {
-            console.log('🎯 Page/User changed, loading exercises for page:', currentPage)
-            stableLoadExercises(currentPage)
-        }
-    }, [currentPage, user?.id, stableLoadExercises])
+    }, [user?.id, currentPage, loadDataNonBlocking])
 
     // Gestione aggiunta esercizio
     const handleAddExercise = () => {

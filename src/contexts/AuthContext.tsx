@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setTimeout(() => {
                     console.log('⏰ Profile query timeout (likely network/region issue)')
                     reject(new Error('Profile query timeout'))
-                }, 2000) // Ridotto a 2s per essere più rapido
+                }, 500) // Ridotto a 0.5s per essere più rapido
             )
 
             const result = await Promise.race([queryPromise, timeoutPromise])
