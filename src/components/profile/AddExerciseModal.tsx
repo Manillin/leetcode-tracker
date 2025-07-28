@@ -24,12 +24,30 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
 
     const supabase = createSupabaseClient()
 
-    // Funzione per aggiornare la streak dell'utente
+    // Funzione per aggiornare la streak dell'utente (GIORNI consecutivi, non esercizi)
     const updateUserStreak = async (completedDate: string) => {
         if (!user) return
 
         try {
-            // Ottieni il profilo attuale
+            // 1. Controlla se in questa data è già stato risolto un esercizio
+            const { data: existingExercises, error: checkError } = await supabase
+                .from('solved_exercises')
+                .select('date_completed')
+                .eq('user_id', user.id)
+                .eq('date_completed', completedDate)
+
+            if (checkError) {
+                console.error('Errore controllo esercizi esistenti:', checkError)
+                return
+            }
+
+            // Se ci sono già esercizi per oggi, NON aggiornare la streak
+            if (existingExercises && existingExercises.length > 0) {
+                console.log('🎯 Esercizio aggiunto nello stesso giorno - streak non cambia')
+                return
+            }
+
+            // 2. Ottieni il profilo attuale
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -41,23 +59,40 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                 return
             }
 
-            // Calcola la nuova streak
+            // 3. Calcola la nuova streak basata sui GIORNI
             let newStreak = 1
-            const completedDateObj = new Date(completedDate)
+            const completedDateObj = new Date(completedDate + 'T00:00:00') // Forza mezzanotte
 
             if (profile?.last_completed_date) {
-                const lastDateObj = new Date(profile.last_completed_date)
+                const lastDateObj = new Date(profile.last_completed_date + 'T00:00:00')
                 const diffTime = completedDateObj.getTime() - lastDateObj.getTime()
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
 
-                // Se è lo stesso giorno o il giorno successivo, incrementa la streak
-                if (diffDays <= 1 && diffDays >= 0) {
+                console.log('📅 Streak calculation:', {
+                    lastDate: profile.last_completed_date,
+                    newDate: completedDate,
+                    diffDays,
+                    currentStreak: profile.streak_count
+                })
+
+                if (diffDays === 1) {
+                    // Giorno consecutivo - incrementa
                     newStreak = (profile.streak_count || 0) + 1
+                    console.log('✅ Giorno consecutivo! Streak:', profile.streak_count, '->', newStreak)
+                } else if (diffDays === 0) {
+                    // Stesso giorno (non dovrebbe succedere con il check sopra)
+                    console.log('⚠️ Stesso giorno - streak rimane:', profile.streak_count)
+                    return
+                } else {
+                    // Gap di giorni - reset a 1
+                    newStreak = 1
+                    console.log('💔 Gap di', diffDays, 'giorni - streak reset a 1')
                 }
-                // Altrimenti inizia una nuova streak
+            } else {
+                console.log('🎯 Prima volta - streak inizia a 1')
             }
 
-            // Aggiorna il profilo usando il contesto (aggiorna sia DB che contesto)
+            // 4. Aggiorna il profilo
             const { error: updateError } = await updateProfile({
                 streak_count: newStreak,
                 last_completed_date: completedDate
@@ -65,6 +100,8 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
 
             if (updateError) {
                 console.error('Errore nell\'aggiornamento della streak:', updateError)
+            } else {
+                console.log('🔥 Streak aggiornata:', newStreak, 'giorni consecutivi')
             }
         } catch (error) {
             console.error('Errore nel calcolo della streak:', error)
