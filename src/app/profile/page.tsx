@@ -176,7 +176,7 @@ function ProfilePage() {
                     console.log('⚠️ Count query failed, setting 0')
                     setTotalCount(0)
                 }
-            } catch (error) {
+            } catch {
                 console.log('⚠️ Count error, setting 0')
                 setTotalCount(0)
             }
@@ -212,7 +212,7 @@ function ProfilePage() {
                 // Seconda query: problemi (in parallelo, non-bloccante)
                 const problemIds = Array.from(new Set(exerciseData.map(ex => ex.problem_id)))
 
-                const { data: problemData, error: problemError } = await supabase
+                const { data: problemData } = await supabase
                     .from('problems')
                     .select('id, leetcode_number, title, link')
                     .in('id', problemIds)
@@ -235,7 +235,7 @@ function ProfilePage() {
                 setExercises(transformedData)
                 console.log('✅ Complete exercises with problems loaded:', transformedData.length)
 
-            } catch (error) {
+            } catch {
                 console.log('⚠️ Exercise loading failed, showing empty state')
                 setExercises([])
             }

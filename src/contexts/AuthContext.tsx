@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const warmupEnd = performance.now()
             console.log('🔥 Cache warmup completed in', (warmupEnd - warmupStart).toFixed(2), 'ms')
-        } catch (error) {
+        } catch {
             console.log('🔥 Cache warmup completed (with errors, but thats ok)')
         }
     }, [supabase])
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setProfile(data || null)
-        } catch (error) {
+        } catch {
             const errorTime = performance.now()
             console.log('⏰ Profile timeout after', (errorTime - startTime).toFixed(2), 'ms - app continues working')
             // Non è un errore fatale - l'app continua a funzionare
@@ -259,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         updateProfile,
-    }), [user, profile, session, loading])
+    }), [user, profile, session, loading, signIn, signUp, signOut, updateProfile])
 
     return (
         <AuthContext.Provider value={value}>
