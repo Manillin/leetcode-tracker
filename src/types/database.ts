@@ -60,8 +60,6 @@ export interface Database {
           problem_id: number
           notes: string | null
           date_completed: string
-          created_at: string
-          updated_at: string
         }
         Insert: {
           id?: number
@@ -69,8 +67,6 @@ export interface Database {
           problem_id: number
           notes?: string | null
           date_completed: string
-          created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: number
@@ -78,8 +74,6 @@ export interface Database {
           problem_id?: number
           notes?: string | null
           date_completed?: string
-          created_at?: string
-          updated_at?: string
         }
       }
     }

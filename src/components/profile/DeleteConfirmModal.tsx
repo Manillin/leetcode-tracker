@@ -9,8 +9,6 @@ interface ExerciseWithProblem {
     problem_id: number
     notes: string | null
     date_completed: string
-    created_at: string
-    updated_at: string
     leetcode_number: number
     title: string
     link: string

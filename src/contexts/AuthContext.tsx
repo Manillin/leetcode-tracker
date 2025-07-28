@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase, loadProfile, warmupSupabaseCache])
 
     // Funzione di login
-    const signIn = async (email: string, password: string) => {
+    const signIn = useCallback(async (email: string, password: string) => {
         try {
             const { error } = await supabase.auth.signInWithPassword({
                 email,
@@ -181,10 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             return { error: error as AppError }
         }
-    }
+    }, [supabase])
 
     // Funzione di registrazione
-    const signUp = async (name: string, email: string, password: string) => {
+    const signUp = useCallback(async (name: string, email: string, password: string) => {
         try {
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -218,18 +218,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             return { error: error as AppError }
         }
-    }
+    }, [supabase])
 
     // Funzione di logout
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
         const { error } = await supabase.auth.signOut()
         if (error) {
             console.error('Errore logout:', error)
         }
-    }
+    }, [supabase])
 
     // Funzione per aggiornare il profilo
-    const updateProfile = async (updates: Partial<Profile>) => {
+    const updateProfile = useCallback(async (updates: Partial<Profile>) => {
         if (!user) return { error: new Error('User not authenticated') }
 
         try {
@@ -248,7 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             return { error: error as AppError }
         }
-    }
+    }, [supabase, user])
 
     const value = useMemo(() => ({
         user,
