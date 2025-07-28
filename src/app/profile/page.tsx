@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth, withAuth } from '@/contexts/AuthContext'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import StatsCards from '@/components/profile/StatsCards'
 import ExerciseTable from '@/components/profile/ExerciseTable'
@@ -15,8 +15,6 @@ interface ExerciseWithProblem {
     problem_id: number
     notes: string | null
     date_completed: string
-    created_at: string
-    updated_at: string
     leetcode_number: number
     title: string
     link: string
@@ -33,59 +31,239 @@ function ProfilePage() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [selectedExercise, setSelectedExercise] = useState<ExerciseWithProblem | null>(null)
 
-    const supabase = createSupabaseClient()
+    // Memoizza il client Supabase
+    const supabase = useMemo(() => createSupabaseClient(), [])
     const ITEMS_PER_PAGE = 10
 
-    // Carica gli esercizi con paginazione (memoizzata)
+    // Carica il conteggio totale (ottimizzato contro re-rendering)
+    const loadTotalCount = useCallback(async () => {
+        if (!user?.id) return
+
+        const countStart = performance.now()
+        console.log('📊 Caricamento conteggio totale... START at', countStart.toFixed(2), 'ms for user:', user.id)
+
+        try {
+            const { count, error } = await supabase
+                .from('solved_exercises')
+                .select('*', { count: 'estimated', head: true })
+                .eq('user_id', user.id)
+
+            const countEnd = performance.now()
+            const countDuration = countEnd - countStart
+            console.log('⚡ Count query in', countDuration.toFixed(2), 'ms')
+
+            if (error) {
+                console.error('❌ Errore conteggio dopo', countDuration.toFixed(2), 'ms:', error)
+                return
+            }
+
+            setTotalCount(count || 0)
+            console.log('✅ Conteggio completato in', countDuration.toFixed(2), 'ms - Count:', count)
+        } catch (error) {
+            const countError = performance.now()
+            console.error('❌ Errore conteggio dopo', (countError - countStart).toFixed(2), 'ms:', error)
+        }
+    }, [user?.id, supabase])
+
+    // Carica gli esercizi con paginazione (ottimizzato contro re-rendering)
     const loadExercises = useCallback(async (page: number = 1) => {
-        if (!user) return
+        if (!user?.id) return
+
+        const exerciseStart = performance.now()
+        console.log('📚 Caricamento esercizi pagina:', page, 'START at', exerciseStart.toFixed(2), 'ms for user:', user.id)
 
         setLoading(true)
         try {
             const from = (page - 1) * ITEMS_PER_PAGE
             const to = from + ITEMS_PER_PAGE - 1
 
-            const { data, error, count } = await supabase
+            // Query esercizi
+            const query1Start = performance.now()
+            const { data: exerciseData, error: exerciseError } = await supabase
                 .from('solved_exercises')
-                .select(`
-          *,
-          problems!inner(*)
-        `, { count: 'exact' })
+                .select('id, user_id, problem_id, notes, date_completed')
                 .eq('user_id', user.id)
                 .order('date_completed', { ascending: false })
                 .range(from, to)
 
-            if (error) {
-                console.error('Errore caricamento esercizi:', error)
+            const query1End = performance.now()
+            console.log('⚡ Exercises query in', (query1End - query1Start).toFixed(2), 'ms')
+
+            if (exerciseError) {
+                console.error('❌ Errore esercizi dopo', (query1End - query1Start).toFixed(2), 'ms:', exerciseError)
                 return
             }
 
-            // Trasforma i dati per avere una struttura piatta
-            const transformedData: ExerciseWithProblem[] = data?.map(exercise => ({
-                id: exercise.id,
-                user_id: exercise.user_id,
-                problem_id: exercise.problem_id,
-                notes: exercise.notes,
-                date_completed: exercise.date_completed,
-                created_at: exercise.created_at,
-                updated_at: exercise.updated_at,
-                leetcode_number: exercise.problems.leetcode_number,
-                title: exercise.problems.title,
-                link: exercise.problems.link,
-            })) || []
+            if (!exerciseData || exerciseData.length === 0) {
+                setExercises([])
+                const totalTime = performance.now() - exerciseStart
+                console.log('✅ Nessun esercizio - TEMPO TOTALE:', totalTime.toFixed(2), 'ms')
+                return
+            }
+
+            // Estrai gli ID dei problemi
+            const mapStart = performance.now()
+            const problemIds = Array.from(new Set(exerciseData.map(ex => ex.problem_id)))
+            const mapEnd = performance.now()
+            console.log('⚡ Problem IDs mapping in', (mapEnd - mapStart).toFixed(2), 'ms')
+
+            // Query problemi
+            const query2Start = performance.now()
+            const { data: problemData, error: problemError } = await supabase
+                .from('problems')
+                .select('id, leetcode_number, title, link')
+                .in('id', problemIds)
+
+            const query2End = performance.now()
+            console.log('⚡ Problems query in', (query2End - query2Start).toFixed(2), 'ms')
+
+            if (problemError) {
+                console.error('❌ Errore problemi dopo', (query2End - query2Start).toFixed(2), 'ms:', problemError)
+                return
+            }
+
+            // Combinazione dati
+            const combineStart = performance.now()
+            const problemMap = new Map(
+                problemData?.map(problem => [problem.id, problem]) || []
+            )
+
+            const transformedData: ExerciseWithProblem[] = exerciseData.map(exercise => {
+                const problem = problemMap.get(exercise.problem_id)
+                return {
+                    ...exercise,
+                    leetcode_number: problem?.leetcode_number || 0,
+                    title: problem?.title || 'N/A',
+                    link: problem?.link || '#',
+                }
+            })
+            const combineEnd = performance.now()
+            console.log('⚡ Data combination in', (combineEnd - combineStart).toFixed(2), 'ms')
 
             setExercises(transformedData)
-            setTotalCount(count || 0)
+            const totalTime = performance.now() - exerciseStart
+            console.log('✅ Esercizi caricati - TEMPO TOTALE:', totalTime.toFixed(2), 'ms - Count:', transformedData.length)
         } catch (error) {
-            console.error('Errore caricamento esercizi:', error)
+            const errorTime = performance.now()
+            console.error('❌ Errore esercizi dopo', (errorTime - exerciseStart).toFixed(2), 'ms:', error)
         } finally {
             setLoading(false)
         }
-    }, [user, supabase, ITEMS_PER_PAGE])
+    }, [user?.id, supabase, ITEMS_PER_PAGE])
 
+    // Funzioni di caricamento stabili (evitano re-render)
+    const stableLoadTotalCount = useCallback(() => {
+        if (!user?.id) return
+
+        const countStart = performance.now()
+        console.log('📊 Loading count for user:', user.id)
+
+        supabase
+            .from('solved_exercises')
+            .select('*', { count: 'estimated', head: true })
+            .eq('user_id', user.id)
+            .then(({ count, error }) => {
+                const countEnd = performance.now()
+                if (error) {
+                    console.error('❌ Count error:', error.message)
+                    return
+                }
+                setTotalCount(count || 0)
+                console.log('✅ Count loaded in', (countEnd - countStart).toFixed(2), 'ms:', count)
+            })
+            .catch((error) => {
+                console.log('⏰ Count timeout - continuing without count')
+            })
+    }, [user?.id, supabase])
+
+    const stableLoadExercises = useCallback((page: number) => {
+        if (!user?.id) return
+
+        const exerciseStart = performance.now()
+        console.log('📚 Loading exercises page:', page, 'for user:', user.id)
+
+        setLoading(true)
+
+        const from = (page - 1) * ITEMS_PER_PAGE
+        const to = from + ITEMS_PER_PAGE - 1
+
+        // Query sequenziali con timeout più corti
+        supabase
+            .from('solved_exercises')
+            .select('id, user_id, problem_id, notes, date_completed')
+            .eq('user_id', user.id)
+            .order('date_completed', { ascending: false })
+            .range(from, to)
+            .then(({ data: exerciseData, error: exerciseError }) => {
+                if (exerciseError) {
+                    console.error('❌ Exercises error:', exerciseError.message)
+                    setLoading(false)
+                    return
+                }
+
+                if (!exerciseData || exerciseData.length === 0) {
+                    setExercises([])
+                    setLoading(false)
+                    const totalTime = performance.now() - exerciseStart
+                    console.log('✅ No exercises - total time:', totalTime.toFixed(2), 'ms')
+                    return
+                }
+
+                // Carica dettagli problemi
+                const problemIds = Array.from(new Set(exerciseData.map(ex => ex.problem_id)))
+
+                return supabase
+                    .from('problems')
+                    .select('id, leetcode_number, title, link')
+                    .in('id', problemIds)
+                    .then(({ data: problemData, error: problemError }) => {
+                        if (problemError) {
+                            console.error('❌ Problems error:', problemError.message)
+                            setLoading(false)
+                            return
+                        }
+
+                        const problemMap = new Map(
+                            problemData?.map(problem => [problem.id, problem]) || []
+                        )
+
+                        const transformedData: ExerciseWithProblem[] = exerciseData.map(exercise => {
+                            const problem = problemMap.get(exercise.problem_id)
+                            return {
+                                ...exercise,
+                                leetcode_number: problem?.leetcode_number || 0,
+                                title: problem?.title || 'N/A',
+                                link: problem?.link || '#',
+                            }
+                        })
+
+                        setExercises(transformedData)
+                        const totalTime = performance.now() - exerciseStart
+                        console.log('✅ Exercises loaded - total time:', totalTime.toFixed(2), 'ms - count:', transformedData.length)
+                        setLoading(false)
+                    })
+            })
+            .catch((error) => {
+                console.log('⏰ Exercises timeout - continuing without exercises')
+                setLoading(false)
+            })
+    }, [user?.id, supabase, ITEMS_PER_PAGE])
+
+    // Carica conteggio una sola volta quando user cambia
     useEffect(() => {
-        loadExercises(currentPage)
-    }, [currentPage, loadExercises])
+        if (user?.id) {
+            console.log('🎯 User authenticated, loading count')
+            stableLoadTotalCount()
+        }
+    }, [user?.id, stableLoadTotalCount])
+
+    // Carica esercizi quando cambia pagina o user
+    useEffect(() => {
+        if (user?.id) {
+            console.log('🎯 Page/User changed, loading exercises for page:', currentPage)
+            stableLoadExercises(currentPage)
+        }
+    }, [currentPage, user?.id, stableLoadExercises])
 
     // Gestione aggiunta esercizio
     const handleAddExercise = () => {
@@ -106,7 +284,9 @@ function ProfilePage() {
 
     // Callback per refresh dopo operazioni CRUD
     const handleOperationComplete = () => {
+        // Ricarica sia gli esercizi che il conteggio
         loadExercises(currentPage)
+        loadTotalCount()
         setShowAddModal(false)
         setShowEditModal(false)
         setShowDeleteModal(false)

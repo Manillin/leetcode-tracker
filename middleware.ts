@@ -3,6 +3,23 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/database'
 
 export async function middleware(request: NextRequest) {
+  // Ottimizzazione: salta il middleware per asset statici e API
+  const { pathname } = request.nextUrl
+
+  // Skip middleware per asset statici, immagini, font, etc.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_static') ||
+    pathname.startsWith('/_vercel') ||
+    pathname.includes('.') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next()
+  }
+
+  console.log('🔄 Middleware executing for:', pathname)
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -28,8 +45,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - required for Server Components
-  await supabase.auth.getUser()
+  // Ottimizzazione: chiama getUser() solo per pagine protette
+  const protectedPaths = ['/profile']
+  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
+
+  if (isProtectedPath) {
+    console.log('🔐 Verificando auth per pagina protetta:', pathname)
+
+    try {
+      // Refresh session if expired - required for Server Components
+      await supabase.auth.getUser()
+      console.log('✅ Auth check completato')
+    } catch (error) {
+      console.error('❌ Errore auth check:', error)
+    }
+  } else {
+    console.log('🚀 Pagina pubblica, skip auth check:', pathname)
+  }
 
   return supabaseResponse
 }

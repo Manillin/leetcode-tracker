@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import type { User, Session, AuthError } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
@@ -30,19 +30,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [loading, setLoading] = useState(true)
 
-    let supabase
-    try {
-        supabase = createSupabaseClient()
-    } catch (error) {
-        console.error('Errore nella creazione del client Supabase:', error)
-        setLoading(false)
-        throw error
-    }
-
-    // Carica il profilo utente (memoizzata)
-    const loadProfile = useCallback(async (userId: string) => {
+    // Memoizza il client Supabase per evitare ricreazioni
+    const supabase = useMemo(() => {
         try {
-            // Timeout di 5 secondi per evitare blocchi infiniti  
+            return createSupabaseClient()
+        } catch (error) {
+            console.error('Errore nella creazione del client Supabase:', error)
+            throw error
+        }
+    }, [])
+
+    // Cache warming: riscalda le tabelle principali
+    const warmupSupabaseCache = useCallback(async () => {
+        const warmupStart = performance.now()
+        console.log('🔥 Starting Supabase cache warmup...')
+
+        try {
+            // Warmup con query piccolissime e veloci
+            const warmupPromises = [
+                // Riscalda tabella solved_exercises
+                supabase.from('solved_exercises').select('id').limit(1).single(),
+                // Riscalda tabella problems  
+                supabase.from('problems').select('id').limit(1).single(),
+                // Riscalda tabella profiles
+                supabase.from('profiles').select('id').limit(1).single()
+            ]
+
+            await Promise.allSettled(warmupPromises)
+
+            const warmupEnd = performance.now()
+            console.log('🔥 Cache warmup completed in', (warmupEnd - warmupStart).toFixed(2), 'ms')
+        } catch (error) {
+            console.log('🔥 Cache warmup completed (with errors, but thats ok)')
+        }
+    }, [supabase])
+
+    // Carica profilo con timeout (problema di rete Supabase confermato)
+    const loadProfile = useCallback(async (userId: string) => {
+        const startTime = performance.now()
+        console.log('👤 loadProfile START - userId:', userId)
+
+        try {
+            // Le query Supabase si bloccano - problema di rete geografica
+            // Timeout necessario per evitare freeze dell'app
             const queryPromise = supabase
                 .from('profiles')
                 .select('*')
@@ -50,74 +80,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single()
 
             const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Query timeout')), 5000)
+                setTimeout(() => {
+                    console.log('⏰ Profile query timeout (likely network/region issue)')
+                    reject(new Error('Profile query timeout'))
+                }, 2000) // Ridotto a 2s per essere più rapido
             )
 
             const result = await Promise.race([queryPromise, timeoutPromise])
             const { data, error } = result
 
+            const endTime = performance.now()
+            console.log('✅ Profile loaded in', (endTime - startTime).toFixed(2), 'ms')
+
             if (error && error.code !== 'PGRST116') {
-                console.error('Errore nel caricamento del profilo:', error)
-                // Continua comunque invece di bloccarsi
+                console.error('❌ Profile error:', error.message)
                 setProfile(null)
                 return
             }
 
             setProfile(data || null)
         } catch (error) {
-            console.error('Errore nel caricamento del profilo:', error)
-            // Imposta profilo a null invece di bloccarsi
+            const errorTime = performance.now()
+            console.log('⏰ Profile timeout after', (errorTime - startTime).toFixed(2), 'ms - app continues working')
+            // Non è un errore fatale - l'app continua a funzionare
             setProfile(null)
         }
     }, [supabase])
 
-    // Inizializzazione e gestione dello stato auth
+    // Inizializzazione auth ottimizzata (con loading intelligente)
     useEffect(() => {
-        // Ottieni la sessione iniziale
-        const getInitialSession = async () => {
-            try {
-                const { data: { session }, error } = await supabase.auth.getSession()
+        let mounted = true
+        let hasInitialized = false
+        const effectStart = performance.now()
+        console.log('🚀 useEffect STARTED at', effectStart.toFixed(2), 'ms')
 
-                if (error) {
-                    console.error('Errore nel recupero della sessione:', error)
-                }
+        console.log('⚡ Using auth state listener for faster initialization')
 
-                setSession(session)
-                setUser(session?.user ?? null)
+        // Avvia cache warmup immediatamente (non bloccante)
+        warmupSupabaseCache()
 
-                if (session?.user) {
-                    await loadProfile(session.user.id)
-                }
-
-                setLoading(false)
-            } catch (error) {
-                console.error('Errore nell\'inizializzazione della sessione:', error)
-                setLoading(false)
-            }
-        }
-
-        getInitialSession()
-
-        // Ascolta i cambiamenti di auth
+        // Ascolta i cambiamenti di auth (più veloce di getSession)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
+                const changeStart = performance.now()
+                console.log('🔄 Auth state change:', event, 'at', changeStart.toFixed(2), 'ms')
+
+                if (!mounted) return
+
                 setSession(session)
                 setUser(session?.user ?? null)
 
-                if (session?.user) {
+                // Imposta loading false solo DOPO aver ricevuto il primo auth state
+                if (!hasInitialized) {
+                    console.log('🎯 First auth state received, setting loading = false')
+                    setLoading(false)
+                    hasInitialized = true
+                }
+
+                if (session?.user && event !== 'TOKEN_REFRESHED') {
+                    // Carica profilo solo per eventi significativi, non per refresh token
+                    const profileStart = performance.now()
                     await loadProfile(session.user.id)
-                } else {
+                    const profileEnd = performance.now()
+                    console.log('⚡ Profile loaded in', (profileEnd - profileStart).toFixed(2), 'ms')
+                } else if (!session?.user) {
                     setProfile(null)
                 }
 
-                setLoading(false)
+                const changeEnd = performance.now()
+                const totalTime = changeEnd - effectStart
+                console.log('✅ Auth initialization completed in', totalTime.toFixed(2), 'ms')
             }
         )
 
+        // Fallback: se dopo 1 secondo non arriva nessun auth state, imposta loading = false
+        const fallbackTimer = setTimeout(() => {
+            if (!hasInitialized && mounted) {
+                console.log('⏰ Auth state timeout, setting loading = false anyway')
+                setLoading(false)
+                hasInitialized = true
+            }
+        }, 1000)
+
         return () => {
+            mounted = false
+            clearTimeout(fallbackTimer)
             subscription.unsubscribe()
         }
-    }, [supabase.auth, loadProfile])
+    }, [supabase, loadProfile, warmupSupabaseCache])
 
     // Funzione di login
     const signIn = async (email: string, password: string) => {
@@ -200,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         profile,
         session,
@@ -209,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         updateProfile,
-    }
+    }), [user, profile, session, loading])
 
     return (
         <AuthContext.Provider value={value}>
