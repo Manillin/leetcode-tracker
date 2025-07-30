@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url)
     const token_hash = searchParams.get('token_hash')
     const type = searchParams.get('type')
-    const next = searchParams.get('next') ?? '/profile'
+    const next = searchParams.get('next') ?? '/auth/email-verified'
 
     if (token_hash && type) {
         const supabase = createSupabaseClient()
