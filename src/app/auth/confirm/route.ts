@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         // Verifica il token email
         const { error } = await supabase.auth.verifyOtp({
             token_hash,
-            type: type as any, // 'email' confirmation
+            type: 'email',
         })
 
         if (!error) {
