@@ -43,29 +43,20 @@ function ProfilePage() {
     const loadTotalCount = useCallback(async () => {
         if (!user?.id) return
 
-        const countStart = performance.now()
-        console.log('📊 Caricamento conteggio totale... START at', countStart.toFixed(2), 'ms for user:', user.id)
-
         try {
             const { count, error } = await supabase
                 .from('solved_exercises')
                 .select('*', { count: 'estimated', head: true })
                 .eq('user_id', user.id)
 
-            const countEnd = performance.now()
-            const countDuration = countEnd - countStart
-            console.log('⚡ Count query in', countDuration.toFixed(2), 'ms')
-
             if (error) {
-                console.error('❌ Errore conteggio dopo', countDuration.toFixed(2), 'ms:', error)
+                console.error('Errore conteggio esercizi:', error)
                 return
             }
 
             setTotalCount(count || 0)
-            console.log('✅ Conteggio completato in', countDuration.toFixed(2), 'ms - Count:', count)
         } catch (error) {
-            const countError = performance.now()
-            console.error('❌ Errore conteggio dopo', (countError - countStart).toFixed(2), 'ms:', error)
+            console.error('Errore conteggio esercizi:', error)
         }
     }, [user?.id, supabase])
 
@@ -73,16 +64,12 @@ function ProfilePage() {
     const loadExercises = useCallback(async (page: number = 1) => {
         if (!user?.id) return
 
-        const exerciseStart = performance.now()
-        console.log('📚 Caricamento esercizi pagina:', page, 'START at', exerciseStart.toFixed(2), 'ms for user:', user.id)
-
         setLoading(true)
         try {
             const from = (page - 1) * ITEMS_PER_PAGE
             const to = from + ITEMS_PER_PAGE - 1
 
             // Query esercizi
-            const query1Start = performance.now()
             const { data: exerciseData, error: exerciseError } = await supabase
                 .from('solved_exercises')
                 .select('id, user_id, problem_id, notes, date_completed, primary_category, additional_tags')
@@ -90,44 +77,31 @@ function ProfilePage() {
                 .order('date_completed', { ascending: false })
                 .range(from, to)
 
-            const query1End = performance.now()
-            console.log('⚡ Exercises query in', (query1End - query1Start).toFixed(2), 'ms')
-
             if (exerciseError) {
-                console.error('❌ Errore esercizi dopo', (query1End - query1Start).toFixed(2), 'ms:', exerciseError)
+                console.error('Errore caricamento esercizi:', exerciseError)
                 return
             }
 
             if (!exerciseData || exerciseData.length === 0) {
                 setExercises([])
-                const totalTime = performance.now() - exerciseStart
-                console.log('✅ Nessun esercizio - TEMPO TOTALE:', totalTime.toFixed(2), 'ms')
                 return
             }
 
             // Estrai gli ID dei problemi
-            const mapStart = performance.now()
             const problemIds = Array.from(new Set(exerciseData.map(ex => ex.problem_id)))
-            const mapEnd = performance.now()
-            console.log('⚡ Problem IDs mapping in', (mapEnd - mapStart).toFixed(2), 'ms')
 
             // Query problemi
-            const query2Start = performance.now()
             const { data: problemData, error: problemError } = await supabase
                 .from('problems')
                 .select('id, leetcode_number, title, link')
                 .in('id', problemIds)
 
-            const query2End = performance.now()
-            console.log('⚡ Problems query in', (query2End - query2Start).toFixed(2), 'ms')
-
             if (problemError) {
-                console.error('❌ Errore problemi dopo', (query2End - query2Start).toFixed(2), 'ms:', problemError)
+                console.error('Errore caricamento problemi:', problemError)
                 return
             }
 
             // Combinazione dati
-            const combineStart = performance.now()
             const problemMap = new Map(
                 problemData?.map(problem => [problem.id, problem]) || []
             )
@@ -141,15 +115,10 @@ function ProfilePage() {
                     link: problem?.link || '#',
                 }
             })
-            const combineEnd = performance.now()
-            console.log('⚡ Data combination in', (combineEnd - combineStart).toFixed(2), 'ms')
 
             setExercises(transformedData)
-            const totalTime = performance.now() - exerciseStart
-            console.log('✅ Esercizi caricati - TEMPO TOTALE:', totalTime.toFixed(2), 'ms - Count:', transformedData.length)
         } catch (error) {
-            const errorTime = performance.now()
-            console.error('❌ Errore esercizi dopo', (errorTime - exerciseStart).toFixed(2), 'ms:', error)
+            console.error('Errore caricamento esercizi:', error)
         } finally {
             setLoading(false)
         }

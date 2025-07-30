@@ -26,8 +26,6 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    // 🧪 Modalità test per la streak
-    const [testMode, setTestMode] = useState(false)
 
     const supabase = createSupabaseClient()
 
@@ -36,29 +34,9 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
         if (!user) return
 
         try {
-            console.log('🔥 === STREAK UPDATE START ===')
-            console.log('🔥 User ID:', user.id)
-            console.log('🔥 Completed Date:', completedDate)
+            console.log('🔥 Streak Update - Date:', completedDate)
 
-            // 1. Ottieni il profilo attuale PRIMA di tutto
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single()
-
-            if (profileError && profileError.code !== 'PGRST116') {
-                console.error('❌ Errore nel caricamento profilo per streak:', profileError)
-                return
-            }
-
-            console.log('📊 Current Profile:', {
-                streak_count: profile?.streak_count || 0,
-                last_completed_date: profile?.last_completed_date || 'none'
-            })
-
-            // 2. Controlla se in questa data è già stato risolto un esercizio
-            // ESCLUDI l'esercizio corrente che potrebbe essere appena stato inserito
+            // 1. Controlla PRIMA se oggi ci sono già esercizi (PRIMA dell'inserimento)
             const { data: existingExercises, error: checkError } = await supabase
                 .from('solved_exercises')
                 .select('date_completed')
@@ -66,70 +44,36 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                 .eq('date_completed', completedDate)
 
             if (checkError) {
-                console.error('❌ Errore controllo esercizi esistenti:', checkError)
+                console.error('Errore controllo esercizi esistenti:', checkError)
                 return
             }
 
             console.log('📋 Existing exercises for date:', existingExercises?.length || 0)
 
-            // Se ci sono già più di 1 esercizio per oggi, NON aggiornare la streak
-            // (Il primo esercizio del giorno deve aggiornare la streak)
-            if (existingExercises && existingExercises.length > 1) {
-                console.log('🎯 Esercizio aggiunto nello stesso giorno - streak non cambia')
+            // Se oggi ci sono già esercizi, NON aggiornare la streak
+            if (existingExercises && existingExercises.length > 0) {
+                console.log('🎯 Già presente esercizio per oggi - streak NON cambia')
                 return
             }
 
-            // 3. Calcola la nuova streak basata sui GIORNI
-            let newStreak = 1
-            const completedDateObj = new Date(completedDate + 'T00:00:00') // Forza mezzanotte
+            // 2. Ottieni il profilo attuale
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single()
 
-            console.log('📅 Date comparison:')
-            console.log('📅 Completed Date Obj:', completedDateObj)
-
-            if (profile?.last_completed_date) {
-                const lastDateObj = new Date(profile.last_completed_date + 'T00:00:00')
-                console.log('📅 Last Date Obj:', lastDateObj)
-
-                const diffTime = completedDateObj.getTime() - lastDateObj.getTime()
-                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
-
-                console.log('📅 Streak calculation:', {
-                    lastDate: profile.last_completed_date,
-                    newDate: completedDate,
-                    diffTime,
-                    diffDays,
-                    currentStreak: profile.streak_count || 0
-                })
-
-                if (diffDays === 1) {
-                    // Giorno consecutivo - incrementa
-                    newStreak = (profile.streak_count || 0) + 1
-                    console.log('✅ Giorno consecutivo! Streak:', profile.streak_count || 0, '->', newStreak)
-                } else if (diffDays === 0) {
-                    // Stesso giorno - mantieni streak attuale
-                    newStreak = profile.streak_count || 1
-                    console.log('⚠️ Stesso giorno - streak rimane:', newStreak)
-                } else if (diffDays > 1) {
-                    // Gap di giorni - reset a 1
-                    newStreak = 1
-                    console.log('💔 Gap di', diffDays, 'giorni - streak reset a 1')
-                } else {
-                    // Data passata (diffDays < 0) - mantieni streak attuale se è una data passata recente
-                    if (diffDays >= -1) {
-                        // Tolleranza di 1 giorno per date passate (edge case)
-                        newStreak = (profile.streak_count || 0) + 1
-                        console.log('⏰ Data passata recente - incrementa streak:', newStreak)
-                    } else {
-                        newStreak = 1
-                        console.log('💔 Data molto passata - reset streak a 1')
-                    }
-                }
-            } else {
-                console.log('🎯 Prima volta - streak inizia a 1')
-                newStreak = 1
+            if (profileError && profileError.code !== 'PGRST116') {
+                console.error('Errore nel caricamento profilo per streak:', profileError)
+                return
             }
 
-            console.log('🎯 New streak to set:', newStreak)
+            const currentStreak = profile?.streak_count || 0
+            console.log('📊 Current Streak:', currentStreak)
+
+            // 3. PRIMO esercizio del giorno - incrementa la streak di +1
+            const newStreak = currentStreak + 1
+            console.log('✅ Primo esercizio del giorno! Streak:', currentStreak, '->', newStreak)
 
             // 4. Aggiorna il profilo
             const { error: updateError } = await updateProfile({
@@ -138,49 +82,13 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
             })
 
             if (updateError) {
-                console.error('❌ Errore nell\'aggiornamento della streak:', updateError)
+                console.error('Errore aggiornamento streak:', updateError)
             } else {
-                console.log('🔥 Streak aggiornata con successo:', newStreak, 'giorni consecutivi')
+                console.log('🔥 Streak aggiornata con successo:', newStreak)
             }
-
-            console.log('🔥 === STREAK UPDATE END ===')
         } catch (error) {
-            console.error('❌ Errore generale nel calcolo della streak:', error)
+            console.error('Errore generale streak:', error)
         }
-    }
-
-    // 🧪 Test Streak con Date Simulate
-    const testStreakWithDates = async () => {
-        if (!user) return
-
-        console.log('🧪 === STREAK TEST MODE START ===')
-
-        // Reset streak prima del test
-        await updateProfile({
-            streak_count: 0,
-            last_completed_date: null
-        })
-        console.log('🧪 Reset streak to 0')
-
-        // Test scenario: 3 giorni consecutivi
-        const testDates = [
-            '2024-07-26', // Giorno 1
-            '2024-07-27', // Giorno 2 
-            '2024-07-28', // Giorno 3 (oggi)
-        ]
-
-        for (let i = 0; i < testDates.length; i++) {
-            console.log(`🧪 Testing date ${i + 1}: ${testDates[i]}`)
-
-            // Simula inserimento esercizio con data specifica
-            await updateUserStreak(testDates[i])
-
-            // Aspetta un po' per vedere i risultati
-            await new Promise(resolve => setTimeout(resolve, 500))
-        }
-
-        console.log('🧪 === STREAK TEST MODE END ===')
-        console.log('🧪 Check your profile - streak should be 3!')
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -405,17 +313,6 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100 mt-6">
-                            {/* 🧪 Test Button - Solo in development */}
-                            {process.env.NODE_ENV === 'development' && (
-                                <button
-                                    type="button"
-                                    onClick={testStreakWithDates}
-                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-lg transition-colors"
-                                >
-                                    🧪 Test Streak
-                                </button>
-                            )}
-
                             <button
                                 type="button"
                                 onClick={handleClose}

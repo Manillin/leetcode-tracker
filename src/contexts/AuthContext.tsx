@@ -42,37 +42,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Cache warming: riscalda le tabelle principali
     const warmupSupabaseCache = useCallback(async () => {
-        const warmupStart = performance.now()
-        console.log('🔥 Starting Supabase cache warmup...')
-
         try {
             // Warmup con query piccolissime e veloci
             const warmupPromises = [
-                // Riscalda tabella solved_exercises
                 supabase.from('solved_exercises').select('id').limit(1).single(),
-                // Riscalda tabella problems  
                 supabase.from('problems').select('id').limit(1).single(),
-                // Riscalda tabella profiles
                 supabase.from('profiles').select('id').limit(1).single()
             ]
 
             await Promise.allSettled(warmupPromises)
-
-            const warmupEnd = performance.now()
-            console.log('🔥 Cache warmup completed in', (warmupEnd - warmupStart).toFixed(2), 'ms')
         } catch {
-            console.log('🔥 Cache warmup completed (with errors, but thats ok)')
+            // Cache warmup failed, but that's ok
+        }
+    }, [supabase])
+
+    // Funzione per controllare e aggiornare la streak al login
+    const checkAndUpdateStreak = useCallback(async (profile: any, userId: string) => {
+        if (!profile) return profile
+
+        try {
+            // Ottieni la data di ieri
+            const yesterday = new Date()
+            yesterday.setDate(yesterday.getDate() - 1)
+            const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+            // Controlla se ieri ci sono stati esercizi
+            const { data: yesterdayExercises, error } = await supabase
+                .from('solved_exercises')
+                .select('date_completed')
+                .eq('user_id', userId)
+                .eq('date_completed', yesterdayStr)
+
+            if (error) {
+                console.error('Errore controllo streak:', error)
+                return profile
+            }
+
+            const hadExercisesYesterday = yesterdayExercises && yesterdayExercises.length > 0
+
+            if (!hadExercisesYesterday && profile.streak_count > 0) {
+                // Non ha fatto esercizi ieri - azzera la streak
+                console.log('Streak azzerata da', profile.streak_count, 'a 0 (nessun esercizio ieri)')
+
+                const { data: updatedProfile, error: updateError } = await supabase
+                    .from('profiles')
+                    .update({ streak_count: 0 })
+                    .eq('id', userId)
+                    .select()
+                    .single()
+
+                if (updateError) {
+                    console.error('Errore aggiornamento streak:', updateError)
+                    return profile
+                }
+
+                return updatedProfile
+            }
+
+            return profile
+        } catch (error) {
+            console.error('Errore controllo streak:', error)
+            return profile
         }
     }, [supabase])
 
     // Carica profilo con timeout (problema di rete Supabase confermato)
     const loadProfile = useCallback(async (userId: string) => {
-        const startTime = performance.now()
-        console.log('👤 loadProfile START - userId:', userId)
-
         try {
-            // Le query Supabase si bloccano - problema di rete geografica
-            // Timeout necessario per evitare freeze dell'app
             const queryPromise = supabase
                 .from('profiles')
                 .select('*')
@@ -81,47 +117,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => {
-                    console.log('⏰ Profile query timeout (likely network/region issue)')
                     reject(new Error('Profile query timeout'))
-                }, 500) // Ridotto a 0.5s per essere più rapido
+                }, 500)
             )
 
             const result = await Promise.race([queryPromise, timeoutPromise])
             const { data, error } = result
 
-            const endTime = performance.now()
-            console.log('✅ Profile loaded in', (endTime - startTime).toFixed(2), 'ms')
-
             if (error && error.code !== 'PGRST116') {
-                console.error('❌ Profile error:', error.message)
+                console.error('Profile error:', error.message)
                 setProfile(null)
                 return
             }
 
-            setProfile(data || null)
+            // Controlla e aggiorna la streak prima di settare il profilo
+            const updatedProfile = await checkAndUpdateStreak(data, userId)
+            setProfile(updatedProfile || null)
         } catch {
-            const errorTime = performance.now()
-            console.log('⏰ Profile timeout after', (errorTime - startTime).toFixed(2), 'ms - app continues working')
-
             // IMPORTANTE: Non azzerare il profilo se ne abbiamo già uno
-            // Questo evita che i refresh token di Supabase cancellino i dati
-            if (!profile) {
-                console.log('📝 First profile load failed - setting null')
-                setProfile(null)
-            } else {
-                console.log('🛡️ Profile timeout but keeping existing profile data')
-            }
+            setProfile(prev => prev || null)
         }
-    }, [supabase, profile])
+    }, [supabase])
 
     // Inizializzazione auth ottimizzata (con loading intelligente)
     useEffect(() => {
         let mounted = true
         let hasInitialized = false
-        const effectStart = performance.now()
-        console.log('🚀 useEffect STARTED at', effectStart.toFixed(2), 'ms')
-
-        console.log('⚡ Using auth state listener for faster initialization')
 
         // Avvia cache warmup immediatamente (non bloccante)
         warmupSupabaseCache()
@@ -129,9 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Ascolta i cambiamenti di auth (più veloce di getSession)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
-                const changeStart = performance.now()
-                console.log('🔄 Auth state change:', event, 'at', changeStart.toFixed(2), 'ms')
-
                 if (!mounted) return
 
                 setSession(session)
@@ -139,31 +157,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 // Imposta loading false solo DOPO aver ricevuto il primo auth state
                 if (!hasInitialized) {
-                    console.log('🎯 First auth state received, setting loading = false')
                     setLoading(false)
                     hasInitialized = true
                 }
 
                 if (session?.user && event !== 'TOKEN_REFRESHED') {
                     // Carica profilo solo per eventi significativi, non per refresh token
-                    const profileStart = performance.now()
                     await loadProfile(session.user.id)
-                    const profileEnd = performance.now()
-                    console.log('⚡ Profile loaded in', (profileEnd - profileStart).toFixed(2), 'ms')
                 } else if (!session?.user) {
                     setProfile(null)
                 }
-
-                const changeEnd = performance.now()
-                const totalTime = changeEnd - effectStart
-                console.log('✅ Auth initialization completed in', totalTime.toFixed(2), 'ms')
             }
         )
 
         // Fallback: se dopo 1 secondo non arriva nessun auth state, imposta loading = false
         const fallbackTimer = setTimeout(() => {
             if (!hasInitialized && mounted) {
-                console.log('⏰ Auth state timeout, setting loading = false anyway')
                 setLoading(false)
                 hasInitialized = true
             }
@@ -174,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(fallbackTimer)
             subscription.unsubscribe()
         }
-    }, [supabase, loadProfile, warmupSupabaseCache])
+    }, [supabase, loadProfile, warmupSupabaseCache, checkAndUpdateStreak])
 
     // Funzione di login
     const signIn = useCallback(async (email: string, password: string) => {
