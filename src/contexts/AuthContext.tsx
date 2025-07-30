@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase])
 
     // Funzione per controllare e aggiornare la streak al login
-    const checkAndUpdateStreak = useCallback(async (profile: any, userId: string) => {
+    const checkAndUpdateStreak = useCallback(async (profile: Profile | null, userId: string) => {
         if (!profile) return profile
 
         try {
@@ -80,9 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const hadExercisesYesterday = yesterdayExercises && yesterdayExercises.length > 0
 
-            if (!hadExercisesYesterday && profile.streak_count > 0) {
+            if (!hadExercisesYesterday && (profile.streak_count || 0) > 0) {
                 // Non ha fatto esercizi ieri - azzera la streak
-                console.log('Streak azzerata da', profile.streak_count, 'a 0 (nessun esercizio ieri)')
+                console.log('Streak azzerata da', profile.streak_count || 0, 'a 0 (nessun esercizio ieri)')
 
                 const { data: updatedProfile, error: updateError } = await supabase
                     .from('profiles')
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // IMPORTANTE: Non azzerare il profilo se ne abbiamo già uno
             setProfile(prev => prev || null)
         }
-    }, [supabase])
+    }, [supabase, checkAndUpdateStreak])
 
     // Inizializzazione auth ottimizzata (con loading intelligente)
     useEffect(() => {
