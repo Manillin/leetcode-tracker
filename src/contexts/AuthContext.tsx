@@ -79,10 +79,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const hadExercisesYesterday = yesterdayExercises && yesterdayExercises.length > 0
+            const todayStr = new Date().toISOString().split('T')[0]
+            const lastCompletedIsToday = profile.last_completed_date === todayStr
 
-            if (!hadExercisesYesterday && (profile.streak_count || 0) > 0) {
-                // Non ha fatto esercizi ieri - azzera la streak
-                console.log('Streak azzerata da', profile.streak_count || 0, 'a 0 (nessun esercizio ieri)')
+            console.log('🔍 Streak check:', {
+                hadExercisesYesterday,
+                currentStreak: profile.streak_count || 0,
+                lastCompletedDate: profile.last_completed_date,
+                today: todayStr,
+                lastCompletedIsToday
+            })
+
+            // Azzera streak solo se:
+            // 1. Non ci sono stati esercizi ieri E
+            // 2. La streak è > 0 E  
+            // 3. L'ultimo esercizio NON è di oggi (per evitare di azzerare più volte)
+            if (!hadExercisesYesterday && (profile.streak_count || 0) > 0 && !lastCompletedIsToday) {
+                console.log('💔 Streak azzerata da', profile.streak_count || 0, 'a 0 (nessun esercizio ieri)')
 
                 const { data: updatedProfile, error: updateError } = await supabase
                     .from('profiles')
@@ -99,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return updatedProfile
             }
 
+            console.log('✅ Streak mantenuta:', profile.streak_count || 0)
             return profile
         } catch (error) {
             console.error('Errore controllo streak:', error)

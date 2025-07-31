@@ -36,7 +36,7 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
         try {
             console.log('🔥 Streak Update - Date:', completedDate)
 
-            // 1. Controlla PRIMA se oggi ci sono già esercizi (PRIMA dell'inserimento)
+            // 1. Controlla quanti esercizi ci sono per oggi (DOPO l'inserimento)
             const { data: existingExercises, error: checkError } = await supabase
                 .from('solved_exercises')
                 .select('date_completed')
@@ -48,13 +48,16 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
                 return
             }
 
-            console.log('📋 Existing exercises for date:', existingExercises?.length || 0)
+            const exercisesToday = existingExercises?.length || 0
+            console.log('📋 Total exercises for today:', exercisesToday)
 
-            // Se oggi ci sono già esercizi, NON aggiornare la streak
-            if (existingExercises && existingExercises.length > 0) {
-                console.log('🎯 Già presente esercizio per oggi - streak NON cambia')
+            // Se questo NON è il primo esercizio di oggi, NON aggiornare la streak
+            if (exercisesToday > 1) {
+                console.log('🎯 Non è il primo esercizio di oggi - streak NON cambia')
                 return
             }
+
+            console.log('✨ È il PRIMO esercizio di oggi - controlliamo la streak!')
 
             // 2. Ottieni il profilo attuale
             const { data: profile, error: profileError } = await supabase
@@ -69,11 +72,45 @@ export default function AddExerciseModal({ isOpen, onClose, onSuccess }: AddExer
             }
 
             const currentStreak = profile?.streak_count || 0
-            console.log('📊 Current Streak:', currentStreak)
+            const lastCompletedDate = profile?.last_completed_date
 
-            // 3. PRIMO esercizio del giorno - incrementa la streak di +1
-            const newStreak = currentStreak + 1
-            console.log('✅ Primo esercizio del giorno! Streak:', currentStreak, '->', newStreak)
+            console.log('📊 Current Profile:', {
+                streak: currentStreak,
+                lastDate: lastCompletedDate
+            })
+
+            // 3. Calcola la nuova streak basata sulla data precedente
+            let newStreak = 1
+
+            if (lastCompletedDate) {
+                const lastDate = new Date(lastCompletedDate + 'T00:00:00')
+                const todayDate = new Date(completedDate + 'T00:00:00')
+                const diffTime = todayDate.getTime() - lastDate.getTime()
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+                console.log('📅 Date comparison:', {
+                    lastDate: lastCompletedDate,
+                    today: completedDate,
+                    diffDays
+                })
+
+                if (diffDays === 1) {
+                    // Giorno consecutivo - incrementa
+                    newStreak = currentStreak + 1
+                    console.log('✅ Giorno consecutivo! Streak:', currentStreak, '->', newStreak)
+                } else if (diffDays === 0) {
+                    // Stesso giorno (non dovrebbe succedere ma per sicurezza)
+                    newStreak = currentStreak
+                    console.log('⚠️ Stesso giorno - streak rimane:', newStreak)
+                } else {
+                    // Gap di giorni - reset a 1
+                    newStreak = 1
+                    console.log('💔 Gap di', diffDays, 'giorni - streak reset a 1')
+                }
+            } else {
+                console.log('🎯 Prima volta in assoluto - streak inizia a 1')
+                newStreak = 1
+            }
 
             // 4. Aggiorna il profilo
             const { error: updateError } = await updateProfile({
