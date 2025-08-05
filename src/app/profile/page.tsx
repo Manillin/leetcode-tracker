@@ -9,6 +9,7 @@ import AddExerciseModal from '@/components/profile/AddExerciseModal'
 import EditExerciseModal from '@/components/profile/EditExerciseModal'
 import DeleteConfirmModal from '@/components/profile/DeleteConfirmModal'
 import ExerciseDetailModal from '@/components/profile/ExerciseDetailModal'
+import Link from 'next/link'
 
 interface ExerciseWithProblem {
     id: number
@@ -287,6 +288,17 @@ function ProfilePage() {
             <div className="container mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            Torna alla Home
+                        </Link>
+                    </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         Ciao, {profile?.name || user.email}!
                     </h1>

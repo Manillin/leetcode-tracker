@@ -25,10 +25,10 @@ export default function EmailVerifiedPage() {
                     {/* Action Buttons */}
                     <div className="space-y-3">
                         <Link
-                            href="/profile"
+                            href="/login"
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 block"
                         >
-                            Vai al Profilo
+                            Accedi al Tuo Account
                         </Link>
 
                         <Link
