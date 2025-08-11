@@ -42,6 +42,13 @@ export default function Home() {
                   <span className="hidden sm:block text-sm text-gray-600">
                     Ciao, <strong>{user.email?.split('@')[0]}</strong>
                   </span>
+                  {/* New: Farmaci button */}
+                  <Link
+                    href="/farmaci"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                  >
+                    Farmaci
+                  </Link>
                   <Link
                     href="/profile"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
