@@ -113,6 +113,8 @@ function MedicationsPage() {
         setSelectedMedication(null)
     }
 
+    const todayLabel = new Date().toLocaleDateString('it-IT')
+
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="container mx-auto px-4 py-8">
@@ -127,10 +129,10 @@ function MedicationsPage() {
                         </Link>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Ciao, {profile?.name || user?.email}!</h1>
-                    <p className="text-gray-600">Qui potrai studiare e ripassare i farmaci.</p>
+                    <p className="text-gray-600">Ecco i tuoi farmaci per lo studio e il ripasso.</p>
                 </div>
 
-                {/* Card blu: Farmaci studiati */}
+                {/* Card blu: Farmaci studiati + Card gialla: Messaggio del giorno */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
                         <div className="flex items-center justify-between">
@@ -149,7 +151,30 @@ function MedicationsPage() {
                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
-                                Bravissima amorino💛
+                                Continua così!
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Nuova card gialla */}
+                    <div className="bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-xl p-6 text-white shadow-lg">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-yellow-100 text-sm font-medium">Messaggio da chris</p>
+                                <p className="text-2xl font-bold mt-1">Hola amorcito te hecho de menos</p>
+                            </div>
+                            <div className="bg-yellow-300 bg-opacity-30 p-3 rounded-lg">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <div className="flex items-center text-yellow-100 text-sm">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7H3v12a2 2 0 002 2z" />
+                                </svg>
+                                {todayLabel}
                             </div>
                         </div>
                     </div>
