@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 interface Medication {
     id: number
     name: string
@@ -14,7 +16,16 @@ interface RandomPickModalProps {
 }
 
 export default function RandomPickModal({ isOpen, medication, onClose, onPickAnother }: RandomPickModalProps) {
+    const [revealed, setRevealed] = useState(false)
+
+    useEffect(() => {
+        // Reset reveal state each time a new medication is shown or the modal is reopened
+        setRevealed(false)
+    }, [medication?.id, isOpen])
+
     if (!isOpen || !medication) return null
+
+    const hasDescription = Boolean(medication.description && medication.description.trim().length > 0)
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -26,7 +37,39 @@ export default function RandomPickModal({ isOpen, medication, onClose, onPickAno
                 <div className="p-6 space-y-4">
                     <div>
                         <h4 className="text-lg font-semibold text-gray-900">{medication.name}</h4>
-                        <p className="mt-2 text-gray-700 whitespace-pre-wrap">{medication.description || 'Nessuna descrizione'}</p>
+                        <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Descrizione</label>
+                            {hasDescription ? (
+                                <div className="relative">
+                                    <p
+                                        className={`text-gray-700 whitespace-pre-wrap transition filter ${revealed ? 'blur-0' : 'blur-sm select-none'}`}
+                                        aria-live="polite"
+                                    >
+                                        {medication.description}
+                                    </p>
+                                    {!revealed && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRevealed(true)}
+                                            className="mt-3 inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        >
+                                            Mostra descrizione
+                                        </button>
+                                    )}
+                                    {revealed && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRevealed(false)}
+                                            className="mt-3 inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+                                        >
+                                            Nascondi descrizione
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Nessuna descrizione</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
