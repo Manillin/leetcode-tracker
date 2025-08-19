@@ -161,7 +161,7 @@ function MedicationsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-yellow-100 text-sm font-medium">Messaggio da chris</p>
-                                <p className="text-2xl font-bold mt-1">anche oggi mi manchi amorino🥺</p>
+                                <p className="text-2xl font-bold mt-1">MAINCRAIF... ehh vabbe ehhh no</p>
                             </div>
                             <div className="bg-yellow-300 bg-opacity-30 p-3 rounded-lg">
                                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
